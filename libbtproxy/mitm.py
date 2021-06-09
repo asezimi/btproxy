@@ -86,7 +86,8 @@ class StickyBluetoothSocket(bluetooth.BluetoothSocket):
             return self.accept()
 
 def load_sdp_handlers(script):
-        if script is None: return None,None
+        if script is None or script == '':
+            return None,None
         master_cb = None
         slave_cb = None
         try:
@@ -116,13 +117,13 @@ def load_sdp_handlers(script):
         return master_cb,slave_cb
 
 
-def mitm_sdp(master_addr,slave_addr,script=None):
+def mitm_sdp(master_addr,slave_addr, script=None):
     while True:
-        try: _mitm_sdp(master_addr,slave_addr,script)
+        try: _mitm_sdp(master_addr,slave_addr, script)
         except ValueError:pass
 
 
-def _mitm_sdp(master_addr,slave_addr,script=None):
+def _mitm_sdp(master_addr,slave_addr, script=None):
     server=StickyBluetoothSocket( '',bluetooth.L2CAP )
     server.bind(('',1))
     server.listen(1)
@@ -153,7 +154,11 @@ def _mitm_sdp(master_addr,slave_addr,script=None):
                     clean_fds(slave_sock)
                     slave_sock = new_sock
                     fds.append(slave_sock)
-                    new_sock.setTarget(new_sock)
+                    if master_sock not in fds:
+                        master_sock = StickyBluetoothSocket((master_addr,1),bluetooth.L2CAP)
+                        fds.append(master_sock)
+                    new_sock.setTarget(master_sock)
+                    # new_sock.setTarget(new_sock)
                     new_sock.setCallback(slave_cb)
                     master_sock.setTarget(new_sock)
                 elif address[0] == master_addr:
@@ -161,6 +166,9 @@ def _mitm_sdp(master_addr,slave_addr,script=None):
                     clean_fds(master_sock)
                     master_sock = new_sock
                     fds.append(master_sock)
+                    if slave_sock not in fds:
+                        slave_sock = StickyBluetoothSocket((slave_addr,1),bluetooth.L2CAP)
+                        fds.append(slave_sock)
                     new_sock.setTarget(slave_sock)
                     new_sock.setCallback(master_cb)
                     slave_sock.setTarget(new_sock)
@@ -192,7 +200,8 @@ def _mitm_sdp(master_addr,slave_addr,script=None):
                         str(e[0]).index('104')      # Connection reset by peer
                         s.target.close()
                         s.target.rebuild()
-                    except:pass
+                    except:
+                        pass
                     s.rebuild()
 
 
@@ -218,6 +227,7 @@ class Btproxy():
                 ('shared_adapter',None),
                 ('clone_addresses',False),
                 ('script',''),
+                ('half_inquire',False),
                 ]
         for i in self._options:
             setattr(self,i[0],i[1])
@@ -251,7 +261,7 @@ class Btproxy():
 
 
     def start_service(self, service, adapter_addr=''):
-        print_verbose('Starting service ',service)
+        # print_verbose('Starting service ',service)
         server_sock=None
         if service['port'] in self.servers:
             print('Port',service['port'],'is already binded to')
@@ -355,13 +365,13 @@ class Btproxy():
                             slave_sock.send( reshandler( lastreq ))
                         elif cmd[:2] == 'sm':
                             print('Enter msg to send to slave:')
-                            a = raw_input()
+                            a = input()
                             print('>>', a)
                             slave_sock.send(a)
 
                         elif cmd[:2] == 'mm':
                             print('Enter msg to send to master:')
-                            a = raw_input()
+                            a = input()
                             print('<<', a)
                             master_sock.send(a)
                         elif cmd[:2] == 'sf':
@@ -397,7 +407,7 @@ class Btproxy():
     def setAddresses(self,):
         if self.clone_addresses:
             adapter_address(self.slave_adapter, inc_last_octet(self.target_master))
-            if not shared:
+            if not self.shared:
                 adapter_address(self.master_adapter, inc_last_octet(self.target_slave))
 
     def setup_adapters(self,):
@@ -419,7 +429,7 @@ class Btproxy():
                         master_adapter = adapters[0]
                         self.shared = True
                     else:
-                        raise RuntimeError('Needs to be atleast one bluetooth adapter')
+                        raise RuntimeError('No bluetooth adapter has found')
                 else:
                     slave_adapter = adapters[0]
                     master_adapter = adapters[1]
@@ -441,13 +451,15 @@ class Btproxy():
 
             print('Looking up info on slave ('+self.target_slave+')')
             self.slave_info = lookup_info(self.target_slave)
-            print('Looking up info on master ('+self.target_master+')')
-            self.master_info = lookup_info(self.target_master)
+            if not self.half_inquire:
+                print('Looking up info on master ('+self.target_master+')')
+                self.master_info = lookup_info(self.target_master)
 
         if 'name' not in self.slave_info or not self.slave_info['name']:
             RuntimeError('Slave not discovered')
-        if 'name' not in self.master_info or not self.master_info['name']:
-            RuntimeError('Master not discovered')
+        if not self.half_inquire:
+            if 'name' not in self.master_info or not self.master_info['name']:
+                RuntimeError('Master not discovered')
         
         if self.slave_name:
             self.option(slave_name = args.slave_name)
@@ -457,7 +469,10 @@ class Btproxy():
         if self.master_name:
             self.option(master_name = args.master_name)
         else:
-            self.option(master_name = str(self.master_info['name'])+'_btproxy')
+            if not self.half_inquire:
+                self.option(master_name = str(self.master_info['name'])+'_btproxy')
+            else:
+                self.option(master_name = "master_btproxy")
 
         if self.shared:
             self.option(master_name = self.slave_name)
@@ -492,7 +507,8 @@ class Btproxy():
         adapter_class(self.master_adapter, self.slave_info['class'])
 
         if not self.shared: 
-            adapter_class(self.slave_adapter, self.master_info['class'])
+            if not self.half_inquire:
+                adapter_class(self.slave_adapter, self.master_info['class'])
             enable_adapter_ssp(self.slave_adapter,True)
             print('Spoofing slave name as ', self.master_name)
             adapter_name(self.slave_adapter, self.master_name)
@@ -504,7 +520,7 @@ class Btproxy():
                
         self.set_adapter_props()
         
-        sdpthread = Thread(target =mitm_sdp, args = (self.target_master,self.target_slave,self.script))
+        sdpthread = Thread(target =mitm_sdp, args = (self.target_master,self.target_slave, self.script))
         sdpthread.daemon = True
 
         threads = []
@@ -530,7 +546,7 @@ class Btproxy():
         self.servers = []
         self.barrier = Barrier(len(self.socks)+1)
         self.connections_lock = RLock()
-        for j in self.socks: print_verbose(j)
+        # for j in self.socks: print_verbose(j)
         for service in self.socks:
             server_sock = self.start_service(service)
             if server_sock is None:
@@ -565,7 +581,8 @@ class Btproxy():
         if not self.already_paired:
             if not self.shared: 
                 adapter_class(self.master_adapter, self.slave_info['class'])
-                adapter_class(self.slave_adapter, self.master_info['class'])
+                if not self.half_inquire:
+                    adapter_class(self.slave_adapter, self.master_info['class'])
             else:
                 adapter_class(self.slave_adapter, self.slave_info['class'])
 
@@ -611,21 +628,22 @@ class Btproxy():
 
         return btproxy_slave_cb, btproxy_master_cb
 
-    def connect_to_svc(self,device, **kwargs):
-        print_verbose('connecting to', device)
+    def connect_to_svc(self,service, **kwargs):
+        print_verbose('connecting to', service)
         socktype = bluetooth.RFCOMM
-        if device['protocol'] == None or device['protocol'].lower() == 'rfcomm':
+        if service['protocol'] == None or service['protocol'].lower() == 'rfcomm':
             socktype = bluetooth.RFCOMM
 
-        elif device['protocol'].lower() == 'l2cap':
+        elif service['protocol'].lower() == 'l2cap':
             socktype = bluetooth.L2CAP
         else:
-            print('Unsupported protocol '+device['protocol'])
+            print('Unsupported protocol '+service['protocol'])
 
         while True:
             try:
                 sock=bluetooth.BluetoothSocket( socktype )
-                if kwargs.get('addr',None) == 'slave' and 0:
+                if kwargs.get('addr',None) == 'slave': # and 0
+                    
                     for i in range(0,3):
                         try:
                             addrport=(adapter_address(self.slave_adapter),self.starting_psm)
@@ -636,7 +654,7 @@ class Btproxy():
                         except BluetoothError as e:
                             if i==2: raise e
 
-                sock.connect((device['host'], device['port'] if device['port'] else 1))
+                sock.connect((service['host'], service['port'] if service['port'] else 1))
 
                 print_verbose('Connected')
                 return sock

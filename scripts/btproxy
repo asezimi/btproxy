@@ -34,6 +34,7 @@ if args.addr_master and args.addr_slave:
         slave_name = args.slave_name,
         master_name = args.master_name,
         script = args.script,
+        half_inquire = args.half_inquire,
     )
 
     btproxy.mitm()
@@ -44,7 +45,6 @@ elif args.set_address:
         sys.exit()
     if args.set_address:
         adaptor_address(args.interface,args.set_address)
-
 
 elif args.list:
     print('Run "hcitool dev" to see adaptors')

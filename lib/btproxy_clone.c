@@ -115,7 +115,7 @@ static PyMethodDef py_module_methods[] = {
     {NULL, NULL}
 };
 
-#if defined PYTHON34 || defined PYTHON340
+#if PY_MAJOR_VERSION >= 3
 static struct PyModuleDef clone_module = {
     PyModuleDef_HEAD_INIT,
     "clone",   /* name of module */

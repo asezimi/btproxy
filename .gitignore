@@ -15,3 +15,4 @@ dbus*
 *.egg-info/
 a.out
 __pycache__/
+.vscode

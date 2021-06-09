@@ -140,7 +140,11 @@ if __name__ == '__main__':
     path = "/test/agent"
     agent = Agent(bus, path)
 
-    mainloop = GObject.MainLoop()
+    if sys.version_info < (3,):
+        mainloop = GObject.MainLoop()
+    else:
+        from gi.repository import GLib
+        mainloop = GLib.MainLoop()
 
     if len(args) > 1:
         try:

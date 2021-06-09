@@ -35,7 +35,7 @@ def advertise_adapter(adapt, cond=True):
 
 def pair_adapter(adapt, addr):
     path = _run(['which','bluez_simple_agent_nouser']).strip()
-    _run(['python', path, adapt, addr])
+    _run(['python3', path, adapt, addr])
 
 def enable_adapter_ssp(adapt, cond):
     _run(['hciconfig',adapt,'sspmode','1' if cond else '0'])
@@ -69,7 +69,7 @@ def adapter_address(inter, addr=None):
         if (bluetooth.is_valid_address(addr)):
             print('device set to ' + clone.set_adapter_address(inter,addr))
         else:
-            raise ValueError('Invalid Address: '+addr);
+            raise ValueError('Invalid Address: '+addr)
     else:
         s = _run(['hciconfig',inter])
         return re.compile(r'Address: ([A-Fa-f0-9:]*)').findall(str(s))[0]
