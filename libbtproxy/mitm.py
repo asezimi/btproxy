@@ -261,7 +261,7 @@ class Btproxy():
 
 
     def start_service(self, service, adapter_addr=''):
-        # print_verbose('Starting service ',service)
+        print_verbose('Starting service ',service)
         server_sock=None
         if service['port'] in self.servers:
             print('Port',service['port'],'is already binded to')
@@ -546,7 +546,7 @@ class Btproxy():
         self.servers = []
         self.barrier = Barrier(len(self.socks)+1)
         self.connections_lock = RLock()
-        # for j in self.socks: print_verbose(j)
+        for j in self.socks: print_verbose(j)
         for service in self.socks:
             server_sock = self.start_service(service)
             if server_sock is None:
