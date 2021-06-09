@@ -1,6 +1,17 @@
 
 # Btproxy
 
+This repository is forked and modified version from btproxy.
+
+### Improvement
+- Added half-inq option which enable you to run btproxy with undiscoverable master device
+- Rewrite small amount of code to surpress deprecated warnings, and execute by python3
+
+### Bug fix
+- Fixed a issue in _mitm_sdp that prevented it from accepting new connections and getting stuck after both master and slave sockets were removed from fds.
+
+If you installed BlueZ 4.X from source code, you may need to add `#define HCI_CHANNEL_USER 1` to the hci.h header to successfully setup btproxy.
+
 ### (Unsupported)
 
 ## Bluetooth Proxy tool
