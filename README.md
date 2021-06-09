@@ -4,8 +4,9 @@
 This repository is forked and modified version from btproxy.
 
 ### Improvement
-- Added half-inq option which enable you to run btproxy with undiscoverable master device
-- Rewrite small amount of code to surpress deprecated warnings, and execute by python3
+- Added half-inq option which enable you to run btproxy with undiscoverable master device.
+- Rewrite small amount of code to surpress deprecated warnings.
+- Improved Python 3 compatibility.
 
 ### Bug fix
 - Fixed a issue in _mitm_sdp that prevented it from accepting new connections and getting stuck after both master and slave sockets were removed from fds.
